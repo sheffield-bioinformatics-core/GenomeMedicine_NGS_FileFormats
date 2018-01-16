@@ -3,7 +3,10 @@ title: "Preliminary Processing of NGS Data"
 author: "Mark Dunning"
 date: "23 January 2018"
 output:
-  beamer_presentation: default
+  beamer_presentation:
+    includes:
+      in_header: header.tex
+  output: 
   slidy_presentation: default
 ---
 
@@ -11,30 +14,50 @@ output:
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-## Outline
+## Practical setup
 
-This afternoon we will cover
+Go to one of following Galaxy servers
+
+- Surnames: A-K
+    + https://bioinf-galaxian.erasmusmc.nl/galaxy/
+- Surnames: L-N
+    + http://galaxy.dbcls.jp/
+- Surnames: O-Z
+    + http://services.cbib.u-bordeaux.fr/galaxy/
+
+## Data Upload
+
+- Go *Get Data*
+    + *Upload File*
+    + *Choose local file*
+    + Select `JoeBlogsBRCAPanel_R1.fastq`, `JoeBlogsBRCAPanel_R2.fastq`,
+    `JoeBlogsBRCAPanel_R1.fastq.gz`, `JoeBlogsBRCAPanel_R2.fastq.gz`
+    
+
+
+## Outline
 
 - The *Fastq* format for sequencing reads
 - Quality assessment of *fastq* files
 - The *bam* format for representing *aligned* reads
-- Practice using *Galaxy*
+- Stage 1 of an analysis *pipeline*
 
+![](images/pipeline.png)
 
 
 ## The sequencing process
 
 - [https://www.youtube.com/embed/HMyCqWhwB8E](https://www.youtube.com/embed/HMyCqWhwB8E) for a nice video
-- Sequencing consists of a serices of *cycles* (e.g. 100), at each cycle we try and incorporate different bases (A, T, C, G)
-- Base that is successfully added will illuminate in a particular colour
+- sequencing consists of a series of *cycles* (e.g. 100), at each cycle we try and incorporate different bases (A, T, C, G)
+- the base that is successfully added will illuminate brightly in a particular colour
 
 ![](images/cycle1A.png)
 
 ## Imaging
 
-- Much of the sequening time is spent taking images of the flowcell
-- It is these images that are used to discover what fragments of DNA were sequenced
-- This process is not perfect and can introduce *uncertainty*
+- much of the sequening time is spent taking images of the flowcell
+- it is these images that are used to discover what fragments of DNA were sequenced
+- this process is not perfect and can introduce *uncertainty*
 
 ![](images/c6vllanxx_c001_l1_t001_bot_s1_a.jpg)
 
@@ -48,33 +71,34 @@ HiSeq rapid run  | 600 million | 150GB (*)
 HiSeq high-output | 4 billion | 1 TB
 
 * Equivalent to **40** HD movies
-File sizes are for 100 bp reads, unzipped
-Number of reads from thermofisher.com and illumina.com
+- File sizes are for 100 bp reads, unzipped
+- Number of reads from thermofisher.com and illumina.com
 
 ## Fastq format
 
-- A text file
-- Can be *compressed* as a gz file
-- Four lines per read
+- a text file
+- can be *compressed* as a gz file
+- four lines per read
+- the sequenced is most interesting, there are two other lines that we potentially investigate
 
 ![](images/fastq-header.png)
 
-## Sequence names
+## Sequence ID
 
 Can contain the following
 
-- Name of sequencer
-- Flow cell *lane*
-- Coordinates of the read on the flow cell
+- name of sequencer
+- flow cell *lane*
+- coordinates of the read on the flow cell
 - whether this is a *paired* read and whether it is read 1, or 2
 
 ## Quality scores
 
-- Base-calling has some probability (`p`) that we make a mistake. 
-- The quality score expresses our *confidence* in a particular base-call; higher quality score, higher confidence
-- One such score for each base of sequencing. i.e. 100 scores for 100 bases of sequencing
-- These are of importance if we want to call SNVs etc.
-    + need to be sure that differences detected from the reference genome and legitimate, and not caused by sequencing error
+- base-calling has some probability (`p`) that we make a mistake. 
+- the quality score expresses our *confidence* in a particular base-call; higher quality score, higher confidence
+- one such score for each base of sequencing. i.e. 100 scores for 100 bases of sequencing
+- these are of importance if we want to call SNVs etc.
+    + need to be sure that differences detected from the reference genome are real, and not caused by sequencing error
     
 ```
 N?>:<9>>>:=;>>?<>:@?>;==@@@>?=AAA<>=A@?6>4B=<>>.@>?<@;?#############
@@ -194,10 +218,9 @@ Ideally, the plot should look *something* like following:-
 ## The `.sam` file
 
 - **S**equence **A**lignment/**M**ap (sam) 
-- The output from an aligner such as `bwa`
+- The output from an aligner such as `bwa` or `bowtie`
 - Same format regardless of sequencing protocol (i.e. RNA-seq, ChIP-seq, DNA-seq etc)
 - May contain un-mapped reads
-- Potentially large size on disk; ~100s of Gb
 - Official specification can be found online http://samtools.github.io/hts-specs/SAMv1.pdf
 - We normally work on a compressed version called a `.bam` file. See later.
 
@@ -231,7 +254,7 @@ The *"flags"* in the sam file can represent useful QC information
 
 flags <- c(T ,T, F,F,F,T,F,T,F,F,F)
 df <- data.frame(ReadHasProperty = as.logical(flags),Binary=as.numeric(flags) ,MultiplyBy=2^(0:10))
-rownames(df) <- c("Paired?", "Properly Paired?","Unmapped?","Unmapped Mate", "On Minus Strand?","Mate on Minus Strand?","Is First Read?","Is Second Read?","Is Secondary Alignment?","Is Not Passing QC?","Is Duplicate Read?")
+rownames(df) <- c("Paired?", "Properly Paired?","Unmapped?","Unmapped Mate?", "On Minus Strand?","Mate on Minus Strand?","Is First Read?","Is Second Read?","Is Secondary Alignment?","Is Not Passing QC?","Is Duplicate Read?")
 knitr::kable(df)
 ```
 
@@ -248,22 +271,9 @@ https://broadinstitute.github.io/picard/explain-flags.html
 
 - 4:- Start Position
 - 5:- Mapping Quality; Confidence that an alignment is correct
-- 6:- CIGAR; Describes positions of matches, insertions, deletions w.r.t reference
+- 6:- CIGAR; Describes number of matches (M), insertions (I), deletions (D)
+    + some bases 
 
-
-## Have a CIGAR!
-
-
-![](images/cigar-highlight.png)
-
-The ***CIGAR*** (**C**ompact **I**diosyncratic **G**apped **Alignment** **R**eport) string is a way of encoding the match between a given sequence and the position it has been assigned in the genome. It is comprised by a series of letters and numbers to indicate how many consecutive bases have that mapping.
-
-- `68M`
-    + 68 bases matching the reference
-- `1S67M`
-    + 1 soft-clipped read followed by 67 matches
-- `15M87N70M90N16M`
-    + 15 matches following by 87 bases skipped followed by 70 matches etc.
 
 ## The `.sam` file
 
@@ -271,7 +281,10 @@ The ***CIGAR*** (**C**ompact **I**diosyncratic **G**apped **Alignment** **R**epo
 ![](images/pairs-explained.png)
 
 
-7, 8, 9:- Alignment information for the paired read
+- 7, 8, 9: Alignment information for the paired read
+    + whether they align to the same chromosome
+    + where the position of the paired read is 
+    + how far apart did they map?
 
 ## The `.sam` file
 
@@ -279,7 +292,24 @@ The ***CIGAR*** (**C**ompact **I**diosyncratic **G**apped **Alignment** **R**epo
 ![](images/sam-entry-explained.png)
 
 
-- 10:-Sequence
+- 10:- Sequence
 - 11:- Base Qualities
 
 This is the same as the `fastq` file; so if you have aligned data you can always go back and re-align
+
+## Exercise: Alignment
+
+- *NGS: QC and manipulation* -> *FASTQ Groomer*
+    + Select file to groom as `JoeBlogsBRCAPanel_R1.fastq`
+- Repeat with `JoeBlogsBRCAPanel_R2.fastq`
+    
+    
+## Exercise: Alignment    
+
+- *NGS: Mapping* -> *Bowtie2*
+    + *Is this single-end or Paired-end?* Select Paired-end
+    + Set *FastQ file #1* and *FastQ file #2* to the two files you created in the previous step
+    + Press *Execute*
+    
+    
+    
