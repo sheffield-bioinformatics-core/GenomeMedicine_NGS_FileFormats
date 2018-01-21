@@ -1,11 +1,9 @@
 ---
 title: "Preliminary Processing of NGS Data"
-author: "Mark Dunning"
+author: "Mark Dunning: Sheffield Bioinformatics Core Director (sbc.shef.ac.uk)"
 date: "23 January 2018"
 output:
-  beamer_presentation:
-    includes:
-      in_header: header.tex
+  beamer_presentation: default
   output: 
   slidy_presentation: default
 ---
@@ -14,6 +12,12 @@ output:
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+```{r eval=FALSE,echo=FALSE}
+source("http://www.bioconductor.org/biocLite.R")
+biocLite("ShortRead")
+```
+
+
 ## Practical setup
 
 Go to one of following Galaxy servers
@@ -21,19 +25,24 @@ Go to one of following Galaxy servers
 - Surnames: A-K
     + https://bioinf-galaxian.erasmusmc.nl/galaxy/
 - Surnames: L-N
-    + http://galaxy.dbcls.jp/
+    + https://galaxy.hidelab.org/
 - Surnames: O-Z
     + http://services.cbib.u-bordeaux.fr/galaxy/
 
 ## Data Upload
 
 - Go *Get Data*
-    + *Upload File*
-    + *Choose local file*
-    + Select `JoeBlogsBRCAPanel_R1.fastq`, `JoeBlogsBRCAPanel_R2.fastq`,
-    `JoeBlogsBRCAPanel_R1.fastq.gz`, `JoeBlogsBRCAPanel_R2.fastq.gz`
+    + *Upload File* (may be a different place on the menu depending which server you connect to!)
     
+![](images/upload_file.png)
 
+    
+## Data Upload
+
+- *Choose local file*
+    + Select `JoeBlogsBRCAPanel_R1.fastq`, `JoeBlogsBRCAPanel_R2.fastq` and click **Start**
+    
+![](images/choose_local.png)
 
 ## Outline
 
@@ -91,6 +100,7 @@ Can contain the following
 - flow cell *lane*
 - coordinates of the read on the flow cell
 - whether this is a *paired* read and whether it is read 1, or 2
+- which biological sample the read came from (if multiple samples were sequenced on the same lane)
 
 ## Quality scores
 
@@ -155,19 +165,33 @@ df[58:68,]
 ## Exercise
 
 - Use the Galaxy tool *Text Manipulation* -> *Select last*
-    + print the last *12* lines from the file `JoeBlogsBRCAPanel_R2.fastq`
-- How many reads are shown in the result?
+
+![](images/select_last.png)
+
+
+## Exercise
+
+- print the last *12* lines from the file `JoeBlogsBRCAPanel_R2.fastq`
+- how many reads are shown in the result?
 - Look at the last read and write down the first five and last five ASCII characters
     + is the quality greater at the start, or the end of the read?
-- Use the Galaxy tool *Text Manipulation* -> *Line/Word/Character count*
-    + count how many lines are in the file `JoeBlogsBRCAPanel_R2.fastq` in total
-    + how many reads does this correspond to?
     
-## FastQC: Quality Assessment of fastqc
+## Exercise
+
+- Use the Galaxy tool *Text Manipulation* -> *Line/Word/Character count*
+
+![](images/line_count.png)
+
+## Exercise
+
+- count how many lines are in the file `JoeBlogsBRCAPanel_R2.fastq` in total
+- how many reads does this correspond to?
+    
+## FastQC: Quality Assessment of fastq files
 
 - [FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) from the Babraham Institute Bioinformatics Core has emerged as the standard tool for performing quality assessment on sequencing reads; https://www.bioinformatics.babraham.ac.uk/projects/fastqc/
 
-- The manual for `fastqc` is available [online](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/) and is very comprehensive 
+- The manual for `FastQC` is available [online](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/) and is very comprehensive 
 - A *"traffic light"* system is used to draw your attention to sections of the report that require further investigation. 
 - `fastqc` will not actually *do* anything to your data. If you decide to trim or remove contamination for your samples, you will need to use another tool.
 - it doesn't know what type of sequencing has been performed (WGS, exome, RNA-seq), which can affect interpretation of some of the plots
@@ -197,15 +221,25 @@ Ideally, the plot should look *something* like following:-
 
 ![](images/fastqc-3a.png)
 
+## Example sections of a `fastqc` report
+
+[Per-base sequence content]
+
+![](images/fastqc-4a.png)
 
 ## Exercise
 
 - using the Galaxy Tool *NGS: QC and manipulation* -> *FastQC Read Quality reports*
-    + generate a QC report for the file `JoeBlogsBRCAPanel_R2.fastq`
+
+![](images/fastqc_galaxy.png)
+
+## Exercise
+
+- generate a QC report for the file `JoeBlogsBRCAPanel_R2.fastq`
 - look at the basic statistics for the file
     + does the number of reads agree with your previous answer?
 - is there any evidence for a decrease in quality as the read length increases?
-
+- See [https://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/3%20Analysis%20Modules/](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/3%20Analysis%20Modules/) for descriptions of various sections of report
 
 
 ## The SAM / BAM format
@@ -271,8 +305,18 @@ https://broadinstitute.github.io/picard/explain-flags.html
 
 - 4:- Start Position
 - 5:- Mapping Quality; Confidence that an alignment is correct
+    + higher is more confident
+    + 0 means read maps to multiple locations
 - 6:- CIGAR; Describes number of matches (M), insertions (I), deletions (D)
-    + some bases 
+
+## CIGAR string
+
+**C**ompact **I**diosyncratic **G**apped **Alignment** **R**eport
+
+- Value before **M** is number of consecutive mapping bases (can be mismatches)
+- Value before **I** is number of bases inserted relative to reference
+- Value before **D** is number of bases deleted relative to reference
+    + e.g. 142**M**2**I**7**M** 2 bp insertion after 142 bases then 7 aligned bases
 
 
 ## The `.sam` file
@@ -281,7 +325,7 @@ https://broadinstitute.github.io/picard/explain-flags.html
 ![](images/pairs-explained.png)
 
 
-- 7, 8, 9: Alignment information for the paired read
+- 7, 8, 9: Alignment information for the paired read (if available)
     + whether they align to the same chromosome
     + where the position of the paired read is 
     + how far apart did they map?
@@ -295,21 +339,60 @@ https://broadinstitute.github.io/picard/explain-flags.html
 - 10:- Sequence
 - 11:- Base Qualities
 
-This is the same as the `fastq` file; so if you have aligned data you can always go back and re-align
+- This is the same as the `fastq` file; so if you have aligned data you can always go back and re-align
+- The file may also have additional (optional) information recorded by the aligner or analysis tool
+
+
+## Sam and Bam
+
+- `sam` is a human-readable file
+    + which makes it quite large and unwieldy
+- `bam` is the compressed binary version
+    + needs special software to interrogate
+    + better way of transferring data
+- they contain *same* data
+- the `bam` file needs to be *indexed* so we can access it more efficiently
+
 
 ## Exercise: Alignment
 
 - *NGS: QC and manipulation* -> *FASTQ Groomer*
-    + Select file to groom as `JoeBlogsBRCAPanel_R1.fastq`
+
+![](images/fastq_groomer.png)
+
+## Exercise: Alignment
+
+- Select file to groom as `JoeBlogsBRCAPanel_R1.fastq`
+    + press **Execute**
 - Repeat with `JoeBlogsBRCAPanel_R2.fastq`
     
     
 ## Exercise: Alignment    
 
 - *NGS: Mapping* -> *Bowtie2*
-    + *Is this single-end or Paired-end?* Select Paired-end
-    + Set *FastQ file #1* and *FastQ file #2* to the two files you created in the previous step
-    + Press *Execute*
+
+![](images/bowtie2_galaxy.png)    
     
+## Exercise: Alignment    
     
+- In *Is this single-end or Paired-end?* Select **Paired-end**
+- Set *FastQ file #1* and *FastQ file #2* to the two files you created in the previous step
+- Make sure the reference genome is set to **Human (Homo sapiens)(b37):hg19**
+- Press *Execute*
+- Wait!
+
+## Exercise: Visualisation of reads
+
+  - Download the `bam` file you have just created, and it's index file
+
+![](images/download_bam.png)  
+  
+  
+## Exercise: Visualisation of reads
+  
+- Load into **IGV**
+- Navigate to the BRCA1 gene and zoom-in to see the reads
+- Can you see any possible mutations?
+- *Hover* over particular reads to get information about the aligment of the read
+- (if you didn't manage to align the data, the file `JoeBlogsBRCAPanel_bowtie2.bam` can be used)
     
