@@ -88,7 +88,7 @@ HiSeq high-output | 4 billion | 1 TB
 - a text file
 - can be *compressed* as a gz file
 - four lines per read
-- the sequenced is most interesting, there are two other lines that we potentially investigate
+- the sequenced read is most interesting, there are two other lines that we potentially investigate
 
 ![](images/fastq-header.png)
 
@@ -100,7 +100,11 @@ Can contain the following
 - flow cell *lane*
 - coordinates of the read on the flow cell
 - whether this is a *paired* read and whether it is read 1, or 2
-- which biological sample the read came from (if multiple samples were sequenced on the same lane)
+    + separate fastq files produced for read 1 and read 2
+    
+![](images/paired_reads.png)
+
+
 
 ## Quality scores
 
@@ -172,7 +176,6 @@ df[58:68,]
 ## Exercise
 
 - print the last *12* lines from the file `JoeBlogsBRCAPanel_R2.fastq`
-- how many reads are shown in the result?
 - Look at the last read and write down the first five and last five ASCII characters
     + is the quality greater at the start, or the end of the read?
     
@@ -323,7 +326,6 @@ https://broadinstitute.github.io/picard/explain-flags.html
 
 
 ![](images/pairs-explained.png)
-
 
 - 7, 8, 9: Alignment information for the paired read (if available)
     + whether they align to the same chromosome
